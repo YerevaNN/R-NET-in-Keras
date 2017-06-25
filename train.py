@@ -11,21 +11,22 @@ def categorical_accuracy_pair(y_true, y_pred):
     P = K.shape(y_true) [-1] // 2
     return categorical_accuracy(y_true[:, :P], y_pred[:, :P]) * categorical_accuracy(y_true[:, P:], y_pred[:, P:])
 
+
+print("Creating the model")
 model = RNet()
 
+print("Keras compile")
 model.compile(optimizer=Adadelta(lr=1.0),
               loss='categorical_crossentropy',
-              metrics=['mse', categorical_accuracy_pair])
+              metrics=[categorical_accuracy_pair])
 
+print("Loading train")
 train_data = load_dataset('data/train_data.pkl')
+print("Loading val")
 valid_data = load_dataset('data/valid_data.pkl')
 
-train_data_gen = BatchGen(*train_data, batch_size=2, shuffle=True)
-valid_data_gen = BatchGen(*valid_data, batch_size=2, shuffle=False)
-
-# model.predict_generator(generator=train_data_gen, 
-#                         steps=train_data_gen.steps(),
-#                         verbose=1)
+train_data_gen = BatchGen(*train_data, batch_size=30, shuffle=False, sort_by_length=True, balance=True) #shuffle=True)
+valid_data_gen = BatchGen(*valid_data, batch_size=30, shuffle=False, sort_by_length=True)
 
 print('Training...')
 

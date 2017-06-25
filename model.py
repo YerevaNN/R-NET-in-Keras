@@ -4,7 +4,7 @@ from __future__ import division
 
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Input, Dense, RepeatVector
+from keras.layers import Input, Dense, RepeatVector, Masking, Dropout
 from keras.layers.merge import Concatenate
 from keras.layers.wrappers import Bidirectional, TimeDistributed
 from keras.layers.recurrent import GRU
@@ -37,19 +37,22 @@ class RNet(Model):
             'WPP_v':    Dense(units=self.H, use_bias=False, name='WPP_v'),
             'WQ_v':     Dense(units=self.H, use_bias=False, name='WQ_v'),
         }
-
+            
         self.P = Input(shape=(self.N, self.W), name='P')
         self.Q = Input(shape=(self.M, self.W), name='Q')
-
-        self.uP = self.P
+        
+        self.uP = Masking() (self.P)
         for i in range(3):
-            self.uP = Bidirectional(GRU(units=self.H,
+            self.uP = Bidirectional(GRU(units=self.H, dropout=0.2,
                                         return_sequences=True)) (self.uP)
-
-        self.uQ = self.Q
+        self.uP = Dropout(0.2) (self.uP)
+        
+        self.uQ = Masking() (self.Q)
         for i in range(3):
             self.uQ = Bidirectional(GRU(units=self.H,
-                                        return_sequences=True)) (self.uQ)
+                                        return_sequences=True, 
+                                        dropout=0.2)) (self.uQ)
+        self.uQ = Dropout(0.2) (self.uQ)
 
         self.vP = QuestionAttnGRU(units=self.H,
                                   return_sequences=True,
@@ -64,6 +67,7 @@ class RNet(Model):
                                   name='vP') ([
                                       self.uP, self.uQ
                                   ])
+        self.vP = Dropout(0.2) (self.vP)
 
         self.hP_forward = SelfAttnGRU(units=self.H,
                                       return_sequences=True,
@@ -93,6 +97,7 @@ class RNet(Model):
         self.hP = Concatenate(name='hP') ([
             self.hP_forward, self.hP_backward
         ])
+        self.hP = Dropout(0.2) (self.hP)
 
         self.rQ = QuestionPooling(layer_map={
                                       'e': 'WQ_u',
@@ -101,6 +106,7 @@ class RNet(Model):
                                   },
                                   layers=self.shared_layers,
                                   name='rQ') (self.uQ)
+        self.rQ = Dropout(0.2) (self.rQ)
 
         self.fake_input = GlobalMaxPooling1D() (self.P)
         self.fake_input = RepeatVector(n=2,
@@ -117,8 +123,7 @@ class RNet(Model):
                              name='ps') ([
                                  self.fake_input, self.rQ, self.hP
                              ])
-                             
-        print(K.int_shape(self.ps))
+        
         self.ps = Flatten(name='ps_flat') (self.ps)
 
         self.inputs = [self.P, self.Q]
