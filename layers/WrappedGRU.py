@@ -19,16 +19,26 @@ class WrappedGRU(GRU):
         if layers is not None:
             self.set_layers(layers)
 
+
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        if isinstance(inputs, list) and initial_state is None:
-            initial_state = self.get_initial_state(inputs[0])
-            new_inputs = []
-            new_inputs += inputs[:1]
-            new_inputs += initial_state[len(inputs) - 1 : len(self.states)]
-            new_inputs += inputs[1:]
-            inputs = new_inputs
-        print('initial_states:', len(inputs) - 1, len(self.states))
+        self._non_sequences = inputs[-1:]
+        self._mask_non_sequences = mask[-1:] if isinstance(mask, list) else []
+
+        inputs = inputs[:-1]
+        if(len(inputs) == 1):
+            inputs = inputs[0]
+        
+        if mask is not None:
+            mask = mask[:-1]
+            if(len(mask) == 1):
+                mask = mask[0]
         return super(WrappedGRU, self).call(inputs, mask, training)
+
+    def get_constants(self, inputs, training=None):
+        constants = super(WrappedGRU, self).get_constants(inputs, training=training)
+        constants += self._non_sequences
+        constants += self._mask_non_sequences
+        return constants
 
     @property
     def layers(self):

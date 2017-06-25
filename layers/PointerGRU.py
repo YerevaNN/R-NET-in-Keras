@@ -7,6 +7,7 @@ from keras.layers import Layer
 from keras.layers.wrappers import TimeDistributed
 
 from WrappedGRU import WrappedGRU
+from helpers import compute_mask, softmax
 
 class PointerGRU(WrappedGRU):
 
@@ -34,10 +35,6 @@ class PointerGRU(WrappedGRU):
         self.GRU_input_spec = self.input_spec
         self.input_spec = [None] * nb_inputs # TODO TODO TODO
 
-        self.GRU_states = self.states
-        self.states = [None, None]#, None]
-
-        
         if not self.layers['s'].built:
             self.layers['s'].build(input_shape=(B, 2 * H))
         
@@ -50,8 +47,9 @@ class PointerGRU(WrappedGRU):
     def step(self, inputs, states):
         # input
         ha_tm1 = states[0] # (B, 2H)
-        hP = states[1] # (B, P, 2H)
         restStates = states[2:]
+        hP = states[3] # (B, P, 2H)
+        hP_mask = states[4]
 
         WP_h_Dot = self.layers['e'].call(hP) # (B, P, H)
         Wa_h_Dot = self.layers['s'].call(K.expand_dims(ha_tm1, axis=1)) # (B, 1, H)
@@ -59,14 +57,13 @@ class PointerGRU(WrappedGRU):
         s_t_hat = K.tanh(WP_h_Dot + Wa_h_Dot) # (B, P, H)
         s_t = self.layers['v'].call(s_t_hat) # (B, P, 1)
         s_t = K.batch_flatten(s_t) # (B, P)
-        a_t = K.softmax(s_t) # (B, P)
+        a_t = softmax(s_t, mask=hP_mask, axis=1) # (B, P)
         c_t = K.batch_dot(hP, a_t, axes=[1, 1]) # (B, 2H)
 
         GRU_inputs = c_t
-        GRU_states = [ha_tm1] + list(restStates)
-        ha_t, (ha_t_,) = super(PointerGRU, self).step(GRU_inputs, GRU_states)
+        ha_t, (ha_t_,) = super(PointerGRU, self).step(GRU_inputs, states)
         
-        return a_t, [ha_t, hP]
+        return a_t, [ha_t]
 
     def compute_output_shape(self, input_shape):
         assert(isinstance(input_shape, list))
@@ -84,3 +81,6 @@ class PointerGRU(WrappedGRU):
             return (B, T, P)
         else:
             return (B, P)
+
+    def compute_mask(self, inputs, mask=None):
+        return None # TODO
