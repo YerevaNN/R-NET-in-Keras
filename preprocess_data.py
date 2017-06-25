@@ -30,7 +30,7 @@ print "Done!"
 print "Reading word2vec data... ",
 word_vec_size = 300
 w2v_model = gensim.models.KeyedVectors.load_word2vec_format('word2vec_from_glove_300.vec')
-vocab = [] w2v_model.vocab
+vocab = w2v_model.vocab
 print "Done!"
 
 def get_word_vector(word):
@@ -56,11 +56,8 @@ def parse_sample(context, question, answer_start, answer_end, **kwargs):
         answer_start = [answer_start >= s and answer_start < e for s, e in char_offsets].index(True)
         answer_end   = [answer_end   >= s and answer_end   < e for s, e in char_offsets].index(True)
     except ValueError:
-        print(char_offsets)
-        print(answer_start, answer_end)
         return None
     
-    print('context', tokens)
     context_vecs = [get_word_vector(token) for token in tokens]
     context_vecs = np.vstack(context_vecs).astype(np.float32)
 
@@ -68,11 +65,8 @@ def parse_sample(context, question, answer_start, answer_end, **kwargs):
     tokens = []
     for s in question['sentences']:
         tokens += s['tokens']
-    print('question', tokens)
     question_vecs = [get_word_vector(token) for token in tokens]
     question_vecs = np.vstack(question_vecs).astype(np.float32)
-    print('ans', answer_start, answer_end)
-    exit(0)
     return [[context_vecs, question_vecs],
             [answer_start, answer_end]]
 
