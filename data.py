@@ -13,15 +13,6 @@ def load_dataset(filename):
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
-def class_weight(dataset):
-    labels = dataset[1] if isinstance(dataset, tuple) else dataset
-    labels = list(labels)
-    nb_samples = len(labels)
-    return {
-        0: nb_samples / labels.count(0),
-        1: nb_samples / labels.count(1)
-    }
-
 def padded_batch_input(input, indices=None, dtype=K.floatx()):
     if indices is None:
         indices = np.arange(len(input))
@@ -39,8 +30,9 @@ def categorical_batch_target(target, classes, indices=None, dtype=K.floatx()):
 class BatchGen(object):
     def __init__(self, inputs, targets=None, batch_size=None, stop=False,
                  shuffle=True, balance=False, dtype=K.floatx(),
-                 flatten_targets=True):
+                 flatten_targets=True, sort_by_length=False):
         assert len(set([len(i) for i in inputs])) == 1
+        assert(not shuffle or not sort_by_length)
         self.inputs = inputs
         self.nb_samples = len(inputs[0])
 
@@ -53,8 +45,13 @@ class BatchGen(object):
         self.balance = balance
         self.targets = targets
         self.flatten_targets = flatten_targets
-        if self.targets and self.balance:
-            self.class_weight = class_weight(self.targets)
+
+        self.sort_by_length = None
+        if sort_by_length:
+            self.sort_by_length = np.argsort([-len(p) for p in inputs[0]])
+
+        # if self.targets and self.balance:
+        #     self.class_weight = class_weight(self.targets)
 
         self.generator = self._generator()
         self._steps = -(-self.nb_samples // self.batch_size) # round up
@@ -63,16 +60,31 @@ class BatchGen(object):
         while True:
             if self.shuffle:
                 permutation = np.random.permutation(self.nb_samples)
+            elif self.sort_by_length is not None:
+                permutation = self.sort_by_length
             else:
                 permutation = np.arange(self.nb_samples)
 
-            for i in range(0, self.nb_samples, self.batch_size):
-                indices = permutation[i : i + self.batch_size]
+            i = 0
+            longest = 767
+
+            while i < self.nb_samples:
+                if self.sort_by_length is not None:
+                    bs = self.batch_size * 767 // self.inputs[0][permutation[i]].shape[0]
+                else:
+                    bs = self.batch_size
+                
+                indices = permutation[i : i + bs]
+                i = i + bs
+
+            # for i in range(0, self.nb_samples, self.batch_size):
+                # indices = permutation[i : i + self.batch_size]
 
                 batch_X = [padded_batch_input(input, indices, self.dtype)
                            for input in self.inputs]
 
                 P = batch_X[0].shape[1]
+                print("[[[  {}    {}  ]]]]".format(bs, P))
 
                 if not self.targets:
                     yield batch_X
@@ -89,7 +101,8 @@ class BatchGen(object):
                     yield (batch_X, batch_Y)
                     continue
 
-                batch_W = np.array([self.class_weight[y] for y in batch_targets])
+                # batch_W = np.array([self.class_weight[y] for y in batch_targets])
+                batch_W = np.array([bs / self.batch_size for x in batch_X[0]]).astype(self.dtype)
                 yield (batch_X, batch_Y, batch_W)
 
             if self.stop:
@@ -105,6 +118,26 @@ class BatchGen(object):
         return self.generator.__next__()
 
     def steps(self):
+        if self.sort_by_length is None: 
+            return self._steps
+            
+        print("Steps was called")
+        if self.shuffle:
+            permutation = np.random.permutation(self.nb_samples)
+        elif self.sort_by_length is not None:
+            permutation = self.sort_by_length
+        else:
+            permutation = np.arange(self.nb_samples)
+
+        i = 0
+        longest = 767
+
+        self._steps = 0
+        while i < self.nb_samples:
+            bs = self.batch_size * 767 // self.inputs[0][permutation[i]].shape[0]
+            i = i + bs
+            self._steps += 1
+
         return self._steps
 
 batch_gen = BatchGen # for backward compatibility
