@@ -25,8 +25,8 @@ train_data = load_dataset('data/train_data.pkl')
 print("Loading val")
 valid_data = load_dataset('data/valid_data.pkl')
 
-train_data_gen = BatchGen(*train_data, batch_size=30, shuffle=False, sort_by_length=True, balance=True) #shuffle=True)
-valid_data_gen = BatchGen(*valid_data, batch_size=30, shuffle=False, sort_by_length=True)
+train_data_gen = BatchGen(*train_data, batch_size=50, shuffle=False, groupby=True)
+valid_data_gen = BatchGen(*valid_data, batch_size=50, shuffle=False, groupby=True)
 
 print('Training...')
 

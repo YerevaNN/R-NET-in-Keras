@@ -9,6 +9,9 @@ from keras import backend as K
 from keras.utils import np_utils
 from keras.preprocessing import sequence
 
+from random import shuffle
+import itertools
+
 def load_dataset(filename):
     with open(filename, 'rb') as f:
         return pickle.load(f)
@@ -27,10 +30,23 @@ def categorical_batch_target(target, classes, indices=None, dtype=K.floatx()):
     batch_target = [min(target[i], classes-1) for i in indices]
     return np_utils.to_categorical(batch_target, classes).astype(dtype)
 
+# @np.vectorize
+def lengthGroup(length):
+        if length < 240:
+            return 0
+        if length < 380:
+            return 1
+        if length < 520:
+            return 2
+        if length < 660:
+            return 3
+        return 4
+
 class BatchGen(object):
     def __init__(self, inputs, targets=None, batch_size=None, stop=False,
                  shuffle=True, balance=False, dtype=K.floatx(),
-                 flatten_targets=True, sort_by_length=False):
+                 flatten_targets=True, sort_by_length=False,
+                 groupby=False):
         assert len(set([len(i) for i in inputs])) == 1
         assert(not shuffle or not sort_by_length)
         self.inputs = inputs
@@ -56,12 +72,58 @@ class BatchGen(object):
         self.generator = self._generator()
         self._steps = -(-self.nb_samples // self.batch_size) # round up
 
+        self.group_ids = [0, 1, 2, 3, 4] if groupby else None
+        if groupby is not False:
+            indices = np.arange(self.nb_samples)
+            # import ipdb
+            # ipdb.set_trace()
+
+            ff = lambda i: lengthGroup(len(inputs[0][i]))
+
+            indices = np.argsort([ff(i) for i in indices])
+
+            self.groups = itertools.groupby(indices, ff)
+
+            self.groups = {k: np.array(list(v)) for k, v in self.groups}
+            # lengthGroups(np.array([len(_) for _ in inputs[0]]))
+            # print(4)
+
     def _generator(self):
         while True:
             if self.shuffle:
                 permutation = np.random.permutation(self.nb_samples)
             elif self.sort_by_length is not None:
                 permutation = self.sort_by_length
+            elif self.groups is not None:
+                # permutation = np.arange(self.nb_samples)
+                # tmp = permutation.copy()
+                # for id in self.group_ids:
+                #     mask = (self.groups==id)
+                #     tmp[mask] = np.random.permutation(permutation[mask])
+                # permutation = tmp
+                # import ipdb
+                # ipdb.set_trace()
+
+                for k, v in self.groups.items():
+                    np.random.shuffle(v)
+
+                tmp = np.concatenate(self.groups.values())
+
+                batches = np.array_split(tmp, self._steps)
+
+                remainder = []
+                if len(batches[-1]) < self._steps:
+                    remainder = batches[-1:]
+                    batches = batches[:-1]
+
+                print('------', len(tmp), self.batch_size, len(batches))
+                shuffle(batches)
+
+                batches += remainder
+
+                permutation = np.concatenate(batches)
+
+
             else:
                 permutation = np.arange(self.nb_samples)
 
@@ -84,7 +146,7 @@ class BatchGen(object):
                            for input in self.inputs]
 
                 P = batch_X[0].shape[1]
-                print("[[[  {}    {}  ]]]]".format(bs, P))
+                print("[[[  {}    {}    {}  ]]]]".format(bs, P, lengthGroup(P)))
 
                 if not self.targets:
                     yield batch_X
