@@ -15,173 +15,83 @@ from layers import SelfAttnGRU
 from layers import PointerGRU
 from layers import QuestionPooling
 from layers import Flatten
+from layers import SharedWeight
 
 class RNet(Model):
     def __init__(self, **kwargs):
         '''Dimensions'''
-        self.B = None
-        self.N = None
-        self.M = None
-        self.H = 75
-        self.W = 300
+        B = None
+        N = None
+        M = None
+        H = 75
+        W = 300
 
-        self.shared_layers = {
-            'v':        Dense(units=1, use_bias=False, name='v'),
-            'WQ_u':     Dense(units=self.H, use_bias=False, name='WQ_u'),
-            'WP_u':     Dense(units=self.H, use_bias=False, name='WP_u'),
-            'WP_v':     Dense(units=self.H, use_bias=False, name='WP_v'),
-            'W_g1':     Dense(units=4 * self.H, use_bias=False, name='W_g1'),
-            'W_g2':     Dense(units=2 * self.H, use_bias=False, name='W_g2'),
-            'WP_h':     Dense(units=self.H, use_bias=False, name='WP_h'),
-            'Wa_h':     Dense(units=self.H, use_bias=False, name='Wa_h'),
-            'WPP_v':    Dense(units=self.H, use_bias=False, name='WPP_v'),
-            'WQ_v':     Dense(units=self.H, use_bias=False, name='WQ_v'),
-        }
+        v = SharedWeight(size=(H, 1), name='v')
+        WQ_u = SharedWeight(size=(2 * H, H), name='WQ_u')
+        WP_u = SharedWeight(size=(2 * H, H), name='WP_u')
+        WP_v = SharedWeight(size=(H, H), name='WP_v')
+        W_g1 = SharedWeight(size=(4 * H, 4 * H), name='W_g1')
+        W_g2 = SharedWeight(size=(2 * H, 2 * H), name='W_g2')
+        WP_h = SharedWeight(size=(2 * H, H), name='WP_h')
+        Wa_h = SharedWeight(size=(2 * H, H), name='Wa_h')
+        WQ_v = SharedWeight(size=(2 * H, H), name='WQ_v')
+        WPP_v = SharedWeight(size=(H, H), name='WPP_v')
+
+        shared_weights = [v, WQ_u, WP_u, WP_v, W_g1, W_g2, WP_h, Wa_h, WQ_v, WPP_v]
             
-        self.P = Input(shape=(self.N, self.W), name='P')
-        self.Q = Input(shape=(self.M, self.W), name='Q')
+        P = Input(shape=(N, W), name='P')
+        Q = Input(shape=(M, W), name='Q')
         
-        self.uP = Masking() (self.P)
+        uP = Masking() (P)
         for i in range(3):
-            self.uP = Bidirectional(GRU(units=self.H, dropout=0.2,
-                                        return_sequences=True)) (self.uP)
-        self.uP = Dropout(0.2) (self.uP)
+            uP = Bidirectional(GRU(units=H,
+                                   return_sequences=True,
+                                   dropout=0.2)) (uP)
+        uP = Dropout(rate=0.2, name='uP') (uP)
         
-        self.uQ = Masking() (self.Q)
+        uQ = Masking() (Q)
         for i in range(3):
-            self.uQ = Bidirectional(GRU(units=self.H,
-                                        return_sequences=True, 
-                                        dropout=0.2)) (self.uQ)
-        self.uQ = Dropout(0.2) (self.uQ)
+            uQ = Bidirectional(GRU(units=H,
+                                   return_sequences=True, 
+                                   dropout=0.2)) (uQ)
+        uQ = Dropout(rate=0.2, name='uQ') (uQ)
 
-        self.vP = QuestionAttnGRU(units=self.H,
-                                  return_sequences=True,
-                                  layer_map={
-                                      'e': 'WQ_u',
-                                      's': 'WP_v',
-                                      'i': 'WP_u',
-                                      'v': 'v',
-                                      'g': 'W_g1'
-                                  },
-                                  layers=self.shared_layers,
-                                  name='vP') ([
-                                      self.uP, self.uQ
-                                  ])
-        self.vP = Dropout(0.2) (self.vP)
+        vP = QuestionAttnGRU(units=H,
+                             return_sequences=True) ([
+                                 uP, uQ, 
+                                 WQ_u, WP_v, WP_u, v, W_g1
+                             ])
+        vP = Dropout(rate=0.2, name='vP') (vP)
 
-        self.hP_forward = SelfAttnGRU(units=self.H,
-                                      return_sequences=True,
-                                      layer_map={
-                                          'e': 'WP_v',
-                                          'i': 'WPP_v',
-                                          'v': 'v',
-                                          'g': 'W_g2'
-                                      },
-                                      layers=self.shared_layers) ([
-                                          self.vP, self.vP
+        hP = Bidirectional(SelfAttnGRU(units=H,
+                                       return_sequences=True)) ([
+                                          vP, vP,
+                                          WP_v, WPP_v, v, W_g2
                                       ])
 
-        self.hP_backward = SelfAttnGRU(units=self.H,
-                                       return_sequences=True,
-                                       layer_map={
-                                           'e': 'WP_v',
-                                           'i': 'WPP_v',
-                                           'v': 'v',
-                                           'g': 'W_g2'
-                                       },
-                                       layers=self.shared_layers,
-                                       go_backwards=True) ([
-                                           self.vP, self.vP
-                                       ])
+        hP = Dropout(rate=0.2, name='hP') (hP)
 
-        self.hP = Concatenate(name='hP') ([
-            self.hP_forward, self.hP_backward
-        ])
-        self.hP = Dropout(0.2) (self.hP)
+        rQ = QuestionPooling() ([uQ, WQ_u, WQ_v, v])
+        rQ = Dropout(rate=0.2, name='rQ') (rQ)
 
-        self.rQ = QuestionPooling(layer_map={
-                                      'e': 'WQ_u',
-                                      's': 'WQ_v',
-                                      'v': 'v'
-                                  },
-                                  layers=self.shared_layers,
-                                  name='rQ') (self.uQ)
-        self.rQ = Dropout(0.2) (self.rQ)
+        fake_input = GlobalMaxPooling1D() (P)
+        fake_input = RepeatVector(n=2, name='fake_input') (fake_input)
 
-        self.fake_input = GlobalMaxPooling1D() (self.P)
-        self.fake_input = RepeatVector(n=2,
-                                       name='fake_input') (self.fake_input)
-
-        self.ps = PointerGRU(units=2 * self.H,
-                             return_sequences=True,
-                             layer_map={
-                                 'e': 'WP_h',
-                                 's': 'Wa_h',
-                                 'v': 'v'
-                             },
-                             layers=self.shared_layers,
-                             name='ps') ([
-                                 self.fake_input, self.rQ, self.hP
-                             ])
+        ps = PointerGRU(units=2 * H,
+                        return_sequences=True,
+                        initial_state_provided=True,
+                        name='ps') ([
+                            fake_input, hP,
+                            WP_h, Wa_h, v, 
+                            rQ
+                        ])
         
-        self.ps = Flatten(name='ps_flat') (self.ps)
+        ps = Flatten(name='ps_flat') (ps)
 
-        self.inputs = [self.P, self.Q]
+        inputs = [P, Q] + shared_weights
 
-        self.outputs = [self.ps]
+        outputs = [ps]
 
-        super(RNet, self).__init__(inputs=self.inputs,
-                                   outputs=self.outputs,
+        super(RNet, self).__init__(inputs=inputs,
+                                   outputs=outputs,
                                    **kwargs)
-
-    @property
-    def trainable_weights(self):
-        if not self.trainable:
-            return []
-        weights = super(RNet, self).trainable_weights
-        for layer in self.shared_layers.values():
-            weights += layer.trainable_weights
-        return weights
-
-    @property
-    def non_trainable_weights(self):
-        weights = super(RNet, self).non_trainable_weights
-        for layer in self.shared_layers.values():
-            weights += layer.non_trainable_weights
-        if not self.trainable:
-            trainable_weights = super(RNet, self).trainable_weights
-            for layer in self.shared_layers.values():
-                trainable_weights += layer.trainable_weights
-            return trainable_weights + weights
-        return weights
-
-    def get_weights(self):
-        raise NotImplementedError
-
-    def set_weights(self, weights):
-        raise NotImplementedError
-
-    def get_config(self):
-        raise NotImplementedError
-
-    @classmethod
-    def from_config(cls, config, custom_objects=None):
-        raise NotImplementedError
-
-    def save(self, filepath, overwrite=True, include_optimizer=True):
-        raise NotImplementedError
-
-    def save_weights(self, filepath, overwrite=True):
-        raise NotImplementedError
-
-    def load_weights(self, filepath, by_name=False):
-        raise NotImplementedError
-
-    def to_json(self, **kwargs):
-        raise NotImplementedError
-
-    def to_yaml(self, **kwargs):
-        raise NotImplementedError
-
-    def summary(self, line_length=None, positions=None):
-        raise NotImplementedError

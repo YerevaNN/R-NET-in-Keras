@@ -20,12 +20,8 @@ class QuestionAttnGRU(WrappedGRU):
         B, P, H_ = input_shape[0]
         assert(H_ == 2 * H)
 
-        # assert(len(input_shape[1]) == 2)
-        # B, H_ = input_shape[1]
-        # assert(H_ == H)
-
-        assert(len(input_shape[-1]) == 3)
-        B, Q, H_ = input_shape[-1]
+        assert(len(input_shape[1]) == 3)
+        B, Q, H_ = input_shape[1]
         assert(H_ == 2 * H)
 
         self.input_spec = [None]
@@ -33,41 +29,26 @@ class QuestionAttnGRU(WrappedGRU):
         self.GRU_input_spec = self.input_spec
         self.input_spec = [None] * nb_inputs
 
-        if not self.layers['i'].built:
-            self.layers['i'].build(input_shape=(B, 2 * H))
-        
-        if not self.layers['s'].built:
-            self.layers['s'].build(input_shape=(B, H))
-        
-        if not self.layers['e'].built:
-            self.layers['e'].build(input_shape=(B, Q, 2 * H))
-        
-        if not self.layers['v'].built:
-            self.layers['v'].build(input_shape=(B, Q, H))
-        
-        if not self.layers['g'].built:
-            self.layers['g'].build(input_shape=(B, 4 * H))
-
     def step(self, inputs, states):
         uP_t = inputs
         vP_tm1 = states[0]
-        uQ = states[3]
-        uQ_mask = states[4]
+        _ = states[1:3] # ignore internal dropout/masks
+        uQ, WQ_u, WP_v, WP_u, v, W_g1 = states[3:9]
+        uQ_mask, = states[9:10]
 
-        WQ_u_Dot = self.layers['e'].call(uQ)
-        WP_v_Dot = self.layers['s'].call(K.expand_dims(vP_tm1, axis=1))
-        WP_u_Dot = self.layers['i'].call(K.expand_dims(uP_t, axis=1))
+        WQ_u_Dot = K.dot(uQ, WQ_u) #WQ_u
+        WP_v_Dot = K.dot(K.expand_dims(vP_tm1, axis=1), WP_v) #WP_v
+        WP_u_Dot = K.dot(K.expand_dims(uP_t, axis=1), WP_u) # WP_u
 
         s_t_hat = K.tanh(WQ_u_Dot + WP_v_Dot + WP_u_Dot)
-        # s_t_hat *= 
 
-        s_t = self.layers['v'].call(s_t_hat)
+        s_t = K.dot(s_t_hat, v) # v
         s_t = K.batch_flatten(s_t)
         a_t = softmax(s_t, mask=uQ_mask, axis=1)
         c_t = K.batch_dot(a_t, uQ, axes=[1, 1])
 
         GRU_inputs = K.concatenate([uP_t, c_t])
-        g = self.layers['g'].call(GRU_inputs)
+        g = K.dot(GRU_inputs, W_g1) # W_g1
         GRU_inputs = g * GRU_inputs
         vP_t, s = super(QuestionAttnGRU, self).step(GRU_inputs, states)
 

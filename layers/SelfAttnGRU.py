@@ -20,12 +20,9 @@ class SelfAttnGRU(WrappedGRU):
         B, P, H_ = input_shape[0]
         assert(H_ == H)
 
-        #
-        #
-        #
 
-        assert(len(input_shape[-1]) == 3)
-        B, P_, H_ = input_shape[-1]
+        assert(len(input_shape[1]) == 3)
+        B, P_, H_ = input_shape[1]
         assert(P_ == P)
         assert(H_ == H)
 
@@ -34,29 +31,18 @@ class SelfAttnGRU(WrappedGRU):
         self.GRU_input_spec = self.input_spec
         self.input_spec = [None] * nb_inputs
 
-        if not self.layers['i'].built:
-            self.layers['i'].build(input_shape=(B, H))
-        
-        if not self.layers['e'].built:
-            self.layers['e'].build(input_shape=(B, P, H))
-        
-        if not self.layers['v'].built:
-            self.layers['v'].build(input_shape=(B, P, H))
-        
-        if not self.layers['g'].built:
-            self.layers['g'].build(input_shape=(B, 2 * H))
-
     def step(self, inputs, states):
         vP_t = inputs
         hP_tm1 = states[0]
-        vP = states[3]
-        vP_mask = states[4]
+        _ = states[1:3] # ignore internal dropout/masks 
+        vP, WP_v, WPP_v, v, W_g2 = states[3:8]
+        vP_mask, = states[8:]
 
-        WP_v_Dot = self.layers['e'].call(vP)
-        WPP_v_Dot = self.layers['i'].call(K.expand_dims(vP_t, axis=1))
+        WP_v_Dot = K.dot(vP, WP_v)
+        WPP_v_Dot = K.dot(K.expand_dims(vP_t, axis=1), WPP_v)
 
         s_t_hat = K.tanh(WPP_v_Dot + WP_v_Dot)
-        s_t = self.layers['v'].call(s_t_hat)
+        s_t = K.dot(s_t_hat, v)
         s_t = K.batch_flatten(s_t)
 
         a_t = softmax(s_t, mask=vP_mask, axis=1)
@@ -64,7 +50,7 @@ class SelfAttnGRU(WrappedGRU):
         c_t = K.batch_dot(a_t, vP, axes=[1, 1])
         
         GRU_inputs = K.concatenate([vP_t, c_t])
-        g = self.layers['g'].call(GRU_inputs)
+        g = K.dot(GRU_inputs, W_g2)
         GRU_inputs = g * GRU_inputs
         
         hP_t, s = super(SelfAttnGRU, self).step(GRU_inputs, states)
