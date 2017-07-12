@@ -11,18 +11,23 @@ class SharedWeightLayer(InputLayer):
                  size,
                  initializer='glorot_uniform',
                  regularizer=None,
+                 name=None,
                  **kwargs):
         self.size = tuple(size)
         self.initializer = initializers.get(initializer)
         self.regularizer = regularizers.get(regularizer)
 
-        Layer.__init__(self, **kwargs)
+        if not name:
+            prefix = 'shared_weight'
+            name = prefix + '_' + str(K.get_uid(prefix))
 
+        Layer.__init__(self, name=name, **kwargs)
 
-        self.kernel = self.add_weight(shape=self.size,
-                                      initializer=self.initializer,
-                                      name='kernel',
-                                      regularizer=self.regularizer)
+        with K.name_scope(self.name):
+            self.kernel = self.add_weight(shape=self.size,
+                                        initializer=self.initializer,
+                                        name='kernel',
+                                        regularizer=self.regularizer)
 
 
         self.trainable = True
