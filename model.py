@@ -14,7 +14,6 @@ from layers import QuestionAttnGRU
 from layers import SelfAttnGRU
 from layers import PointerGRU
 from layers import QuestionPooling
-from layers import Flatten
 from layers import Slice
 from layers import SharedWeight
 
