@@ -4,4 +4,5 @@ from PointerGRU import PointerGRU
 from QuestionPooling import QuestionPooling
 from Flatten import Flatten
 from Argmax import Argmax
+from Slice import Slice
 from SharedWeight import SharedWeightLayer, SharedWeight

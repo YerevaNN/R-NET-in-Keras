@@ -9,13 +9,17 @@ class Argmax(Layer):
         self.axis = axis
 
     def call(self, inputs, mask=None):
-        P = K.shape(inputs) [-1] // 2
-        start = K.argmax(inputs[:, :P])
-        end = K.argmax(inputs[:, P:])
-        return [start, end]
+        return K.argmax(inputs, axis=self.axis)
 
     def compute_output_shape(self, input_shape):
-        return [input_shape[:-1], input_shape[:-1]]
+        input_shape = list(input_shape)
+        del input_shape[self.axis]
+        return tuple(input_shape)
 
     def compute_mask(self, x, mask):
-        return [None, None]
+        return None
+
+    def get_config(self):
+        config = {'axis': self.axis}
+        base_config = super(Argmax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
