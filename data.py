@@ -16,12 +16,12 @@ def load_dataset(filename):
     with open(filename, 'rb') as f:
         return pickle.load(f)
 
-def padded_batch_input(input, indices=None, dtype=K.floatx()):
+def padded_batch_input(input, indices=None, dtype=K.floatx(), maxlen=None):
     if indices is None:
         indices = np.arange(len(input))
 
     batch_input = [input[i] for i in indices]
-    return sequence.pad_sequences(batch_input, dtype=dtype, padding='post')
+    return sequence.pad_sequences(batch_input, maxlen, dtype, padding='post')
 
 def categorical_batch_target(target, classes, indices=None, dtype=K.floatx()):
     if indices is None:
@@ -30,23 +30,24 @@ def categorical_batch_target(target, classes, indices=None, dtype=K.floatx()):
     batch_target = [min(target[i], classes-1) for i in indices]
     return np_utils.to_categorical(batch_target, classes).astype(dtype)
 
-# @np.vectorize
 def lengthGroup(length):
-        if length < 240:
-            return 0
-        if length < 380:
-            return 1
-        if length < 520:
-            return 2
-        if length < 660:
-            return 3
+    if length < 150:
+        return 0
+    if length < 240:
+        return 1
+    if length < 380:
+        return 2
+    if length < 520:
+        return 3
+    if length < 660:
         return 4
+    return 5
 
 class BatchGen(object):
     def __init__(self, inputs, targets=None, batch_size=None, stop=False,
                  shuffle=True, balance=False, dtype=K.floatx(),
-                 flatten_targets=True, sort_by_length=False,
-                 groupby=False):
+                 flatten_targets=False, sort_by_length=False,
+                 group=False, maxlen=None):
         assert len(set([len(i) for i in inputs])) == 1
         assert(not shuffle or not sort_by_length)
         self.inputs = inputs
@@ -61,6 +62,10 @@ class BatchGen(object):
         self.balance = balance
         self.targets = targets
         self.flatten_targets = flatten_targets
+        if isinstance(maxlen, (list, tuple)):
+            self.maxlen = maxlen
+        else:
+            self.maxlen = [maxlen] * len(inputs)
 
         self.sort_by_length = None
         if sort_by_length:
@@ -72,11 +77,9 @@ class BatchGen(object):
         self.generator = self._generator()
         self._steps = -(-self.nb_samples // self.batch_size) # round up
 
-        self.group_ids = [0, 1, 2, 3, 4] if groupby else None
-        if groupby is not False:
+        self.groups = None
+        if group is not False:
             indices = np.arange(self.nb_samples)
-            # import ipdb
-            # ipdb.set_trace()
 
             ff = lambda i: lengthGroup(len(inputs[0][i]))
 
@@ -85,8 +88,6 @@ class BatchGen(object):
             self.groups = itertools.groupby(indices, ff)
 
             self.groups = {k: np.array(list(v)) for k, v in self.groups}
-            # lengthGroups(np.array([len(_) for _ in inputs[0]]))
-            # print(4)
 
     def _generator(self):
         while True:
@@ -108,7 +109,6 @@ class BatchGen(object):
                     np.random.shuffle(v)
 
                 tmp = np.concatenate(self.groups.values())
-
                 batches = np.array_split(tmp, self._steps)
 
                 remainder = []
@@ -116,13 +116,9 @@ class BatchGen(object):
                     remainder = batches[-1:]
                     batches = batches[:-1]
 
-                print('------', len(tmp), self.batch_size, len(batches))
                 shuffle(batches)
-
                 batches += remainder
-
                 permutation = np.concatenate(batches)
-
 
             else:
                 permutation = np.arange(self.nb_samples)
@@ -142,11 +138,10 @@ class BatchGen(object):
             # for i in range(0, self.nb_samples, self.batch_size):
                 # indices = permutation[i : i + self.batch_size]
 
-                batch_X = [padded_batch_input(input, indices, self.dtype)
-                           for input in self.inputs]
+                batch_X = [padded_batch_input(x, indices, self.dtype, maxlen)
+                           for x, maxlen in zip(self.inputs, self.maxlen)]
 
                 P = batch_X[0].shape[1]
-                print("[[[  {}    {}    {}  ]]]]".format(bs, P, lengthGroup(P)))
 
                 if not self.targets:
                     yield batch_X
@@ -182,7 +177,7 @@ class BatchGen(object):
     def steps(self):
         if self.sort_by_length is None: 
             return self._steps
-            
+
         print("Steps was called")
         if self.shuffle:
             permutation = np.random.permutation(self.nb_samples)
