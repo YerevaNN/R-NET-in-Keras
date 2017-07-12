@@ -11,8 +11,10 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('data', type=str, help='Path to the dataset file')
-    parser.add_argument('--outfile', default='data/tmp.json', type=str,
-                        help='Desired path to output json')
+    parser.add_argument('--outfile', default='data/train_parsed.json',
+                        type=str, help='Desired path to output train json')
+    parser.add_argument('--outfile_valid', default='data/valid_parsed.json',
+                        type=str, help='Desired path to output valid json')
     parser.add_argument('--train_ratio', default=1., type=float,
                         help='ratio for train/val split')
     args = parser.parse_args()
@@ -44,18 +46,16 @@ if __name__ == '__main__':
             valid_cqas += cqas
 
     if args.train_ratio == 1.:
-        print('Writing dataset to file {}...'.format(args.outfile), end='')
+        print('Writing to file {}...'.format(args.outfile), end='')
         with open(args.outfile, 'w') as fd:
             json.dump(train_cqas, fd)
         print('Done!')
     else:
         print('Train/Val ratio is {}'.format(len(train_cqas) / len(valid_cqas)))
-        train_file = 'train_{}'.format(args.outfile)
-        valid_file = 'valid_{}'.format(args.outfile)
-        print('Writing datasets to files {}, {}...'.format(train_file,
-                                                           valid_file), end='')
-        with open(train_file, 'w') as fd:
+        print('Writing to files {}, {}...'.format(args.outfile,
+                                                  args.outfile_valid), end='')
+        with open(args.outfile, 'w') as fd:
             json.dump(train_cqas, fd)
-        with open(valid_file, 'w') as fd:
+        with open(args.outfile_valid, 'w') as fd:
             json.dump(valid_cqas, fd)
         print('Done!')
