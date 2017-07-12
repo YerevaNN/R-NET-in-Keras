@@ -1,42 +1,70 @@
-from keras import backend as K
-from keras.metrics import categorical_accuracy
-from keras.optimizers import Adadelta
+# from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import numpy as np
+import argparse
+
+import keras
+from keras.callbacks import ModelCheckpoint
 
 from model import RNet
 from data import BatchGen, load_dataset
 
-from keras.layers import Masking
+import sys
+sys.setrecursionlimit(100000)
 
-def categorical_accuracy_pair(y_true, y_pred):
-    P = K.shape(y_true) [-1] // 2
-    return categorical_accuracy(y_true[:, :P], y_pred[:, :P]) * categorical_accuracy(y_true[:, P:], y_pred[:, P:])
+np.random.seed(10)
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--hdim', default=75, help='Model to evaluate', type=int)
+parser.add_argument('--batch_size', default=70, help='Batch size', type=int)
+parser.add_argument('--nb_epochs', default=50, help='Number of Epochs', type=int)
+parser.add_argument('--optimizer', default='Adadelta', help='Optimizer', type=str)
+parser.add_argument('--lr', default=None, help='Learning rate', type=float)
+parser.add_argument('--name', default='', help='Model dump name prefix', type=str)
+parser.add_argument('--loss', default='categorical_crossentropy', help='Loss', type=str)
 
-print("Creating the model")
-model = RNet()
+parser.add_argument('--dropout', default=0, type=float)
 
-print("Keras compile")
-model.compile(optimizer=Adadelta(lr=1.0),
-              loss='categorical_crossentropy',
-              metrics=[categorical_accuracy_pair])
+parser.add_argument('--train_data', default='data/train_data.pkl', help='Train Set', type=str)
+parser.add_argument('--valid_data', default='data/valid_data.pkl', help='Validation Set', type=str)
 
-print("Loading train")
-train_data = load_dataset('data/train_data.pkl')
-print("Loading val")
-valid_data = load_dataset('data/valid_data.pkl')
+# parser.add_argument('model', help='Model to evaluate', type=str)
+args = parser.parse_args()
 
-train_data_gen = BatchGen(*train_data, batch_size=50, shuffle=False, groupby=True)
-valid_data_gen = BatchGen(*valid_data, batch_size=50, shuffle=False, groupby=True)
+print('Creating the model...', end='')
+model = RNet(hdim=args.hdim, dropout_rate=args.dropout, N=300, M=30)
+print('Done!')
 
-print('Training...')
+print('Compiling Keras model...', end='')
+optimizer_config = {'class_name': args.optimizer,
+                    'config': {'lr': args.lr} if args.lr else {}}
+model.compile(optimizer=optimizer_config,
+              loss=args.loss,
+              metrics=['accuracy'])
+print('Done!')
+
+print('Loading datasets...', end='')
+train_data = load_dataset(args.train_data)
+valid_data = load_dataset(args.valid_data)
+print('Done!')
+
+print('Preparing generators...', end='')
+train_data_gen = BatchGen(*train_data, batch_size=args.batch_size, shuffle=False, group=True, maxlen=[300, 30])
+valid_data_gen = BatchGen(*valid_data, batch_size=args.batch_size, shuffle=False, group=True, maxlen=[300, 30])
+print('Done!')
+
+print('Training...', end='')
+
+path = 'models/' + args.name + '{epoch}-t{loss}-v{val_loss}.model'
 
 model.fit_generator(generator=train_data_gen,
                     steps_per_epoch=train_data_gen.steps(),
                     validation_data=valid_data_gen,
                     validation_steps=valid_data_gen.steps(),
-                    epochs=100)
-
-
-import cPickle as pickle
-with open('dump.pkl', 'wb') as f:
-    pickle.dump(model, f, protocol=pickle.HIGHEST_PROTOCOL)
+                    epochs=args.nb_epochs,
+                    callbacks=[
+                        ModelCheckpoint(path, verbose=1, save_best_only=True)
+                    ])
+print('Done!')
