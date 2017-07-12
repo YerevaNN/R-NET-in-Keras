@@ -12,7 +12,6 @@ from helpers import compute_mask, softmax
 class PointerGRU(WrappedGRU):
 
     def build(self, input_shape):
-        print('input_shape:', input_shape)
         H = self.units // 2
         assert(isinstance(input_shape, list))
 
