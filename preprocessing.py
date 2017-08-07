@@ -9,10 +9,12 @@ import cPickle as pickle
 
 from os import path
 from tqdm import tqdm
+from unidecode import unidecode
 
 from utils import CoreNLP_path
 from stanford_corenlp_pywrapper import CoreNLP
 from gensim.models import KeyedVectors
+from keras.preprocessing.sequence import pad_sequences
 
 def CoreNLP_tokenizer():
     proc = CoreNLP(configdict={'annotators': 'tokenize,ssplit'},
@@ -48,6 +50,8 @@ if __name__ == '__main__':
                         help='Word2Vec vectors file path')
     parser.add_argument('--outfile', type=str, default='data/tmp.pkl',
                         help='Desired path to output pickle')
+    parser.add_argument('--include_str', action='store_true',
+                        help='Include strings')
     parser.add_argument('data', type=str, help='Data json')
     args = parser.parse_args()
 
@@ -68,23 +72,46 @@ if __name__ == '__main__':
     print('Done!')
 
     def parse_sample(context, question, answer_start, answer_end, **kwargs):
+        inputs = []
+        targets = []
+
         tokens, char_offsets = tokenize(context)
         try:
             answer_start = [answer_start >= s and answer_start < e
                             for s, e in char_offsets].index(True)
+            targets.append(answer_start)
             answer_end   = [answer_end   >= s and answer_end   < e
                             for s, e in char_offsets].index(True)
+            targets.append(answer_end)
         except ValueError:
             return None
 
+        tokens = [unidecode(token) for token in tokens]
+
         context_vecs = [word_vector(token) for token in tokens]
         context_vecs = np.vstack(context_vecs).astype(np.float32)
+        inputs.append(context_vecs)
+
+        if args.include_str:
+            context_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
+                            for token in tokens]
+            context_str = pad_sequences(context_str, maxlen=25)
+            inputs.append(context_str)
 
         tokens, char_offsets = tokenize(question)
-        question_vecs = [word_vector(token) for token in tokens]
-        question_vecs = np.vstack(question_vecs).astype(np.float32)
-        return [[context_vecs, question_vecs],
-                [answer_start, answer_end]]
+        tokens = [unidecode(token) for token in tokens]
+
+        if args.include_str:
+            question_vecs = [word_vector(token) for token in tokens]
+            question_vecs = np.vstack(question_vecs).astype(np.float32)
+            inputs.append(question_vecs)
+
+        question_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
+                        for token in tokens]
+        question_str = pad_sequences(question_str, maxlen=25)
+        inputs.append(question_str)
+
+        return [inputs, targets]
 
     print('Parsing samples... ', end='')
     samples = [parse_sample(**sample) for sample in tqdm(samples)]
@@ -92,13 +119,11 @@ if __name__ == '__main__':
     print('Done!')
 
     # Transpose
-    data = [[[], []], 
-            [[], []]]
-    for sample in samples:
-        data[0][0].append(sample[0][0])
-        data[0][1].append(sample[0][1])
-        data[1][0].append(sample[1][0])
-        data[1][1].append(sample[1][1])
+    def transpose(x):
+        return map(list, zip(*x))
+
+    data = [transpose(input) for input in transpose(samples)]
+
 
     print('Writing to file {}... '.format(args.outfile), end='')
     with open(args.outfile, 'wb') as fd:
