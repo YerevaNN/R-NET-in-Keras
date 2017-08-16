@@ -27,7 +27,7 @@ def CoreNLP_tokenizer():
         for sentence in parsed['sentences']:
             tokens += sentence['tokens']
             char_offsets += sentence['char_offsets']
-        
+
         return tokens, char_offsets
 
     return tokenize_context
@@ -45,7 +45,7 @@ def word2vec(word2vec_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--word2vec_path', type=str, 
+    parser.add_argument('--word2vec_path', type=str,
                         default='data/word2vec_from_glove_300.vec',
                         help='Word2Vec vectors file path')
     parser.add_argument('--outfile', type=str, default='data/tmp.pkl',
@@ -102,14 +102,14 @@ if __name__ == '__main__':
         tokens = [unidecode(token) for token in tokens]
 
         if args.include_str:
-            question_vecs = [word_vector(token) for token in tokens]
-            question_vecs = np.vstack(question_vecs).astype(np.float32)
-            inputs.append(question_vecs)
+            question_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
+                            for token in tokens]
+            question_str = pad_sequences(question_str, maxlen=25)
+            inputs.append(question_str)
 
-        question_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
-                        for token in tokens]
-        question_str = pad_sequences(question_str, maxlen=25)
-        inputs.append(question_str)
+        question_vecs = [word_vector(token) for token in tokens]
+        question_vecs = np.vstack(question_vecs).astype(np.float32)
+        inputs.append(question_vecs)
 
         return [inputs, targets]
 
