@@ -35,7 +35,7 @@ parser.add_argument('--valid_data', default='data/valid_data.pkl', help='Validat
 args = parser.parse_args()
 
 print('Creating the model...', end='')
-model = RNet(hdim=args.hdim, dropout_rate=args.dropout, N=None, M=None,
+model = RNet(hdim=args.hdim, dropout_rate=args.dropout, N=300, M=30,
              char_level_embeddings=args.char_level_embeddings)
 print('Done!')
 
@@ -53,7 +53,7 @@ valid_data = load_dataset(args.valid_data)
 print('Done!')
 
 print('Preparing generators...', end='')
-maxlen = [200, 200, 30, 30] if args.char_level_embeddings else [300, 30]
+maxlen = [300, 300, 30, 30] if args.char_level_embeddings else [300, 30]
 
 train_data_gen = BatchGen(*train_data, batch_size=args.batch_size, shuffle=False, group=True, maxlen=maxlen)
 valid_data_gen = BatchGen(*valid_data, batch_size=args.batch_size, shuffle=False, group=True, maxlen=maxlen)

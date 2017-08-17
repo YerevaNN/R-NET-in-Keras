@@ -65,7 +65,7 @@ class RNet(Model):
                 Bidirectional(GRU(units=H))
             ]))
 
-            char_embedding_layer.build(input_shape=(None, None, C))
+            # char_embedding_layer.build(input_shape=(None, None, C))
 
             P_char_embeddings = char_embedding_layer(P_str)
             Q_char_embeddings = char_embedding_layer(Q_str)
