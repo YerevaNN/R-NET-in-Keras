@@ -10,7 +10,7 @@ The report describes two versions of R-NET:
 
 The current best single-model on SQuAD leaderboard has a higher score, which means R-NET development continued after March 2017. Ensemble models reach higher scores.
 
-This repository contains an implementation of the first version, but we cannot yet reproduce the reported results. The best performance we got so far was EM=54.21% and F1=65.26% on the dev set. We are aware of a few differences between our implementation and the network described in the paper:
+This repository contains an implementation of the first version, but we cannot yet reproduce the reported results. The best performance we got so far was EM=56.82% and F1=66.68% on the dev set. We are aware of a few differences between our implementation and the network described in the paper:
 
 1. We do not use character-level embedding at the input.
 2. The first formula in (11) of the [report](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/05/r-net.pdf) contains a strange summand W_v^Q V_r^Q. Both tensors are trainable and are not used anywhere else in the network. We have replaced this product with a single trainable vector.
@@ -28,17 +28,17 @@ We are not sure whether we applied dropout correctly. Also there is nothing abou
 
 2. Preprocess the data
 ```sh
-    python preprocessing.py data/train_parsed.json --outfile data/train_data.pkl
-    python preprocessing.py data/valid_parsed.json --outfile data/valid_data.pkl
-    python preprocessing.py data/dev_parsed.json --outfile data/dev_data.pkl
+    python preprocessing.py data/train_parsed.json --outfile data/train_data_str.pkl --include_str
+    python preprocessing.py data/valid_parsed.json --outfile data/valid_data_str.pkl --include_str
+    python preprocessing.py data/dev_parsed.json --outfile data/dev_data_str.pkl --include_str
 ```
 
 3. Train the model
 ```sh
-    python train.py --hdim 40 --batch_size 70 --nb_epochs 50 --optimizer adam --dropout 0.2
+    python train.py --hdim 45 --batch_size 50 --nb_epochs 50 --optimizer adadelta --lr 1 --dropout 0.2 --char_level_embeddings --train_data data/train_data_str.pkl --valid_data data/valid_data_str.pkl
 ```
 
 4. Predict on dev/test set samples
 ```sh
-    python predict.py model/your-model prediction.json
+    python predict.py --batch_size 100 --dev_data data/dev_data_str.pkl models/31-t3.05458271443-v3.27696280528.model prediction.json
 ```
