@@ -39,7 +39,7 @@ predicting_model = Model(inputs, outputs)
 print('Done!')
 
 print('Loading data...', end='')
-dev_data = load_dataset('data/dev_data.pkl')
+dev_data = load_dataset(args.dev_data)
 dev_data_gen = BatchGen(*dev_data, batch_size=args.batch_size, shuffle=False)
 
 with open('data/dev_parsed.json') as f:
