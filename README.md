@@ -46,3 +46,5 @@ On the other hand we can't rule out that we have bugs in our code.
 ```sh
     python predict.py --batch_size 100 --dev_data data/dev_data_str.pkl models/31-t3.05458271443-v3.27696280528.model prediction.json
 ```
+
+Our best model can be downloaded from Release v0.1: https://github.com/YerevaNN/R-NET-in-Keras/releases/download/v0.1/31-t3.05458271443-v3.27696280528.model
