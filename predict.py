@@ -60,7 +60,7 @@ print('Preparing prediction file...', end='')
 contexts = [sample['context'] for sample in samples]
 
 answers = {}
-for sample, context, start, end in tqmd(zip(samples, contexts, *predictions)):
+for sample, context, start, end in tqdm(zip(samples, contexts, *predictions)):
     id = sample['id']
     context_tokens, _ = tokenize(context)
     answer = ' '.join(context_tokens[start : end+1])
