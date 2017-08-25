@@ -40,7 +40,9 @@ print('Done!')
 
 print('Loading data...', end='')
 dev_data = load_dataset(args.dev_data)
-dev_data_gen = BatchGen(*dev_data, batch_size=args.batch_size, shuffle=False)
+char_level_embeddings = len(dev_data[0]) is 4
+maxlen = [300, 300, 30, 30] if char_level_embeddings else [300, 30]
+dev_data_gen = BatchGen(*dev_data, batch_size=args.batch_size, shuffle=False, group=False, maxlen=maxlen)
 
 with open('data/dev_parsed.json') as f:
     samples = json.load(f)
