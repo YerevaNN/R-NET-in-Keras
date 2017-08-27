@@ -35,7 +35,7 @@ parser.add_argument('--valid_data', default='data/valid_data.pkl', help='Validat
 args = parser.parse_args()
 
 print('Creating the model...', end='')
-model = RNet(hdim=args.hdim, dropout_rate=args.dropout, N=300, M=30,
+model = RNet(hdim=args.hdim, dropout_rate=args.dropout, N=None, M=None,
              char_level_embeddings=args.char_level_embeddings)
 print('Done!')
 
