@@ -27,7 +27,7 @@ On the other hand we can't rule out that we have bugs in our code.
 1. We need to parse and split the data
 ```sh
     python parse_data.py data/train-v1.1.json --train_ratio 0.9 --outfile data/train_parsed.json --outfile_valid data/valid_parsed.json
-    python parse_data.py data/train-v1.1.json --outfile data/train_parsed.json
+    python parse_data.py data/dev-v1.1.json --outfile data/dev_parsed.json
 ```
 
 2. Preprocess the data
