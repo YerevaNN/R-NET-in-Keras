@@ -1,8 +1,6 @@
 *.pyc
 *.pkl
 .vscode/
-data/
-lib/
-models/
 .*
-!/.gitignore
+!.gitignore
+
