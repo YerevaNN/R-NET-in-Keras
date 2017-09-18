@@ -84,7 +84,7 @@ class RNet(Model):
                                    return_sequences=True,
                                    dropout=dropout_rate,
                                    unroll=unroll)) (uP)
-        uP = Dropout(rate=dropout_rate, name='uP') (uP)
+        uP = VariationalDropout(rate=dropout_rate, noise_shape=(None, 1, 2 * H), name='uP') (uP)
 
         uQ = Masking() (Q)
         for i in range(3):
@@ -92,7 +92,7 @@ class RNet(Model):
                                    return_sequences=True,
                                    dropout=dropout_rate,
                                    unroll=unroll)) (uQ)
-        uQ = Dropout(rate=dropout_rate, name='uQ') (uQ)
+        uQ = VariationalDropout(rate=dropout_rate, noise_shape=(None, 1, 2 * H), name='uQ') (uQ)
 
         vP = QuestionAttnGRU(units=H,
                              return_sequences=True,
@@ -100,7 +100,7 @@ class RNet(Model):
                                  uP, uQ,
                                  WQ_u, WP_v, WP_u, v, W_g1
                              ])
-        vP = Dropout(rate=dropout_rate, name='vP') (vP)
+        vP = VariationalDropout(rate=dropout_rate, noise_shape=(None, 1, H), name='vP') (vP)
 
         hP = Bidirectional(SelfAttnGRU(units=H,
                                        return_sequences=True,
@@ -109,7 +109,7 @@ class RNet(Model):
                                           WP_v, WPP_v, v, W_g2
                                       ])
 
-        hP = Dropout(rate=dropout_rate, name='hP') (hP)
+        hP = VariationalDropout(rate=dropout_rate, noise_shape=(None, 1, 2 * H), name='hP') (hP)
 
         gP = Bidirectional(GRU(units=H,
                                return_sequences=True,
