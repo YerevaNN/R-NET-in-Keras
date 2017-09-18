@@ -16,6 +16,7 @@ from stanford_corenlp_pywrapper import CoreNLP
 from gensim.models import KeyedVectors
 from keras.preprocessing.sequence import pad_sequences
 
+
 def CoreNLP_tokenizer():
     proc = CoreNLP(configdict={'annotators': 'tokenize,ssplit'},
                    corenlp_jars=[path.join(CoreNLP_path(), '*')])
@@ -32,6 +33,7 @@ def CoreNLP_tokenizer():
 
     return tokenize_context
 
+
 def word2vec(word2vec_path):
     model = KeyedVectors.load_word2vec_format(word2vec_path)
 
@@ -42,6 +44,7 @@ def word2vec(word2vec_path):
             return np.zeros(model.vector_size)
 
     return get_word_vector
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -77,10 +80,10 @@ if __name__ == '__main__':
 
         tokens, char_offsets = tokenize(context)
         try:
-            answer_start = [answer_start >= s and answer_start < e
+            answer_start = [s <= answer_start < e
                             for s, e in char_offsets].index(True)
             targets.append(answer_start)
-            answer_end   = [answer_end   >= s and answer_end   < e
+            answer_end   = [s <= answer_end < e
                             for s, e in char_offsets].index(True)
             targets.append(answer_end)
         except ValueError:
@@ -94,22 +97,22 @@ if __name__ == '__main__':
 
         if args.include_str:
             context_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
-                            for token in tokens]
+                           for token in tokens]
             context_str = pad_sequences(context_str, maxlen=25)
             inputs.append(context_str)
 
         tokens, char_offsets = tokenize(question)
         tokens = [unidecode(token) for token in tokens]
 
+        question_vecs = [word_vector(token) for token in tokens]
+        question_vecs = np.vstack(question_vecs).astype(np.float32)
+        inputs.append(question_vecs)
+
         if args.include_str:
             question_str = [np.fromstring(token, dtype=np.uint8).astype(np.int32)
                             for token in tokens]
             question_str = pad_sequences(question_str, maxlen=25)
             inputs.append(question_str)
-
-        question_vecs = [word_vector(token) for token in tokens]
-        question_vecs = np.vstack(question_vecs).astype(np.float32)
-        inputs.append(question_vecs)
 
         return [inputs, targets]
 
