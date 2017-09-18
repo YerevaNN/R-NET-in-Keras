@@ -48,8 +48,9 @@ class RNet(Model):
         Wa_h = SharedWeight(size=(2 * H, H), name='Wa_h')
         WQ_v = SharedWeight(size=(2 * H, H), name='WQ_v')
         WPP_v = SharedWeight(size=(H, H), name='WPP_v')
+        VQ_r = SharedWeight(size=(H, H), name='VQ_r')
 
-        shared_weights = [v, WQ_u, WP_u, WP_v, W_g1, W_g2, WP_h, Wa_h, WQ_v, WPP_v]
+        shared_weights = [v, WQ_u, WP_u, WP_v, W_g1, W_g2, WP_h, Wa_h, WQ_v, WPP_v, VQ_r]
 
         P_vecs = Input(shape=(N, W), name='P_vecs')
         Q_vecs = Input(shape=(M, W), name='Q_vecs')
@@ -115,7 +116,7 @@ class RNet(Model):
                                return_sequences=True,
                                unroll=unroll)) (hP)
 
-        rQ = QuestionPooling() ([uQ, WQ_u, WQ_v, v])
+        rQ = QuestionPooling() ([uQ, WQ_u, WQ_v, v, VQ_r])
         rQ = Dropout(rate=dropout_rate, name='rQ') (rQ)
 
         fake_input = GlobalMaxPooling1D() (P)
