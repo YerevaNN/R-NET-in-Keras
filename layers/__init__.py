@@ -5,3 +5,4 @@ from QuestionPooling import QuestionPooling
 from Argmax import Argmax
 from Slice import Slice
 from SharedWeight import SharedWeightLayer, SharedWeight
+from VariationalDropout import VariationalDropout

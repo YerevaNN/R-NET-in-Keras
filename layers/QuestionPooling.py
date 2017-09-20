@@ -15,7 +15,7 @@ class QuestionPooling(Layer):
         self.supports_masking = True
 
     def compute_output_shape(self, input_shape):
-        assert(isinstance(input_shape, list) and len(input_shape) == 4)
+        assert(isinstance(input_shape, list) and len(input_shape) == 5)
 
         input_shape = input_shape[0]
         B, Q, H = input_shape
@@ -23,7 +23,7 @@ class QuestionPooling(Layer):
         return (B, H)
 
     def build(self, input_shape):
-        assert(isinstance(input_shape, list) and len(input_shape) == 4)
+        assert(isinstance(input_shape, list) and len(input_shape) == 5)
         input_shape = input_shape[0]
         
         B, Q, H_ = input_shape
