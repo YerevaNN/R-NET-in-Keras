@@ -24,25 +24,30 @@ On the other hand we can't rule out that we have bugs in our code.
 
 ## Instructions
 
-1. We need to parse and split the data
+1. We need to download Glove data and convert it to word2vec format
+```sh
+python word2vec_downloader.py --word2vec_path data/word2vec_from_glove_300.vec
+```
+
+2. Parse and split the data
 ```sh
 python parse_data.py data/train-v1.1.json --train_ratio 0.9 --outfile data/train_parsed.json --outfile_valid data/valid_parsed.json
 python parse_data.py data/dev-v1.1.json --outfile data/dev_parsed.json
 ```
 
-2. Preprocess the data
+3. Preprocess the data
 ```sh
 python preprocessing.py data/train_parsed.json --outfile data/train_data_str.pkl --include_str
 python preprocessing.py data/valid_parsed.json --outfile data/valid_data_str.pkl --include_str
 python preprocessing.py data/dev_parsed.json --outfile data/dev_data_str.pkl --include_str
 ```
 
-3. Train the model
+4. Train the model
 ```sh
 python train.py --hdim 45 --batch_size 50 --nb_epochs 50 --optimizer adadelta --lr 1 --dropout 0.2 --char_level_embeddings --train_data data/train_data_str.pkl --valid_data data/valid_data_str.pkl
 ```
 
-4. Predict on dev/test set samples
+5. Predict on dev/test set samples
 ```sh
 python predict.py --batch_size 100 --dev_data data/dev_data_str.pkl models/31-t3.05458271443-v3.27696280528.model prediction.json
 ```
