@@ -12,7 +12,7 @@ from gensim.scripts.glove2word2vec import glove2word2vec
 from tqdm import tqdm
 from unidecode import unidecode
 
-from utils import CoreNLP_path, get_word2vec_zip_path
+from utils import CoreNLP_path, get_glove_file_path
 from stanford_corenlp_pywrapper import CoreNLP
 from gensim.models import KeyedVectors
 from keras.preprocessing.sequence import pad_sequences
@@ -38,9 +38,9 @@ def CoreNLP_tokenizer():
 def word2vec(word2vec_path):
     # Download word2vec data if it's not present yet
     if not path.exists(word2vec_path):
-        word2vec_zip_path = get_word2vec_zip_path()
+        glove_file_path = get_glove_file_path()
         print('Converting Glove to word2vec...', end='')
-        glove2word2vec(word2vec_zip_path, word2vec_path)
+        glove2word2vec(glove_file_path, word2vec_path)
         print('Done')
 
     print('Reading word2vec data... ', end='')

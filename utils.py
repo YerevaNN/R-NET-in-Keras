@@ -26,7 +26,7 @@ def CoreNLP_path():
     return path.join(lib_dir, VERSION)
 
 
-def get_word2vec_zip_path():
+def get_glove_file_path():
     SERVER = 'http://nlp.stanford.edu/data/'
     VERSION = 'glove.840B.300d'
 
