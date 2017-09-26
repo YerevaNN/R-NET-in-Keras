@@ -8,10 +8,11 @@ import argparse
 import cPickle as pickle
 
 from os import path
+from gensim.scripts.glove2word2vec import glove2word2vec
 from tqdm import tqdm
 from unidecode import unidecode
 
-from utils import CoreNLP_path
+from utils import CoreNLP_path, get_word2vec_zip_path
 from stanford_corenlp_pywrapper import CoreNLP
 from gensim.models import KeyedVectors
 from keras.preprocessing.sequence import pad_sequences
@@ -35,7 +36,16 @@ def CoreNLP_tokenizer():
 
 
 def word2vec(word2vec_path):
+    # Download word2vec data if it's not present yet
+    if not path.exists(word2vec_path):
+        word2vec_zip_path = get_word2vec_zip_path()
+        print('Converting Glove to word2vec...', end='')
+        glove2word2vec(word2vec_zip_path, word2vec_path)
+        print('Done')
+
+    print('Reading word2vec data... ', end='')
     model = KeyedVectors.load_word2vec_format(word2vec_path)
+    print('Done')
 
     def get_word_vector(word):
         try:
@@ -70,9 +80,7 @@ if __name__ == '__main__':
     tokenize = CoreNLP_tokenizer()
     print('Done!')
 
-    print('Reading word2vec data... ', end='')
     word_vector = word2vec(args.word2vec_path)
-    print('Done!')
 
     def parse_sample(context, question, answer_start, answer_end, **kwargs):
         inputs = []
