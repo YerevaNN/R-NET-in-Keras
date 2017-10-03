@@ -2,6 +2,7 @@
 from __future__ import print_function
 from __future__ import division
 
+import os
 from os import path
 from keras.utils.data_utils import get_file
 
@@ -33,10 +34,13 @@ def get_glove_file_path():
     origin = '{server}{version}.zip'.format(server=SERVER, version=VERSION)
     cache_dir = path.join(path.abspath(path.dirname(__file__)), 'data')
 
-    get_file('/tmp/glove.zip',
+    fname = '/tmp/glove.zip'
+    get_file(fname,
              origin=origin,
              cache_dir=cache_dir,
              cache_subdir='',
              extract=True)
 
+    # Remove unnecessary .zip file and keep only extracted .txt version
+    os.remove(fname)
     return path.join(cache_dir, VERSION) + '.txt'

@@ -4,6 +4,7 @@ from __future__ import division
 
 import numpy as np
 import json
+import os
 import argparse
 import cPickle as pickle
 
@@ -40,7 +41,8 @@ def word2vec(word2vec_path):
     if not path.exists(word2vec_path):
         glove_file_path = get_glove_file_path()
         print('Converting Glove to word2vec...', end='')
-        glove2word2vec(glove_file_path, word2vec_path)
+        glove2word2vec(glove_file_path, word2vec_path)  # Convert glove to word2vec
+        os.remove(glove_file_path)                      # Remove glove file and keep only word2vec
         print('Done')
 
     print('Reading word2vec data... ', end='')
