@@ -50,7 +50,7 @@ class SelfAttnGRU(WrappedGRU):
         c_t = K.batch_dot(a_t, vP, axes=[1, 1])
         
         GRU_inputs = K.concatenate([vP_t, c_t])
-        g = K.dot(GRU_inputs, W_g2)
+        g = K.sigmoid(K.dot(GRU_inputs, W_g2))
         GRU_inputs = g * GRU_inputs
         
         hP_t, s = super(SelfAttnGRU, self).step(GRU_inputs, states)

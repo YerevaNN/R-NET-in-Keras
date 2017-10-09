@@ -48,7 +48,7 @@ class QuestionAttnGRU(WrappedGRU):
         c_t = K.batch_dot(a_t, uQ, axes=[1, 1])
 
         GRU_inputs = K.concatenate([uP_t, c_t])
-        g = K.dot(GRU_inputs, W_g1) # W_g1
+        g = K.sigmoid(K.dot(GRU_inputs, W_g1))  # W_g1
         GRU_inputs = g * GRU_inputs
         vP_t, s = super(QuestionAttnGRU, self).step(GRU_inputs, states)
 
