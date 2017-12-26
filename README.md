@@ -22,7 +22,7 @@ This repository contains an implementation of the first version, but we cannot y
 
 On the other hand we can't rule out that we have bugs in our code.
 
-## Instructions
+## Instructions (make sure you are running Keras version 2.0.6)
 
 1. We need to parse and split the data
 ```sh
